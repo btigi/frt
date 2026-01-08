@@ -8,38 +8,52 @@ Console.WriteLine();
 
 CreateFilmTable();
 
-var apiKey = Environment.GetEnvironmentVariable("OMDB_API_KEY");
-if (string.IsNullOrWhiteSpace(apiKey))
-{
-    Console.Write("Enter API key: ");
-    apiKey = Console.ReadLine();
-}
+Console.WriteLine("1 - Enter film details");
+Console.WriteLine("2 - Output film details");
 
-if (string.IsNullOrWhiteSpace(apiKey))
+var choice = Console.ReadLine();
+
+if (choice != "1" && choice != "2")
 {
-    Console.WriteLine("Error: API key is required.");
+    Console.WriteLine("Error: Invalid choice.");
     return;
 }
 
-
-// Get film title
-Console.Write("Enter a film title: ");
-var filmTitle = Console.ReadLine();
-
-if (string.IsNullOrWhiteSpace(filmTitle))
+if (choice == "1")
 {
-    Console.WriteLine("Error: Film title is required.");
-    return;
+    var apiKey = Environment.GetEnvironmentVariable("OMDB_API_KEY");
+    if (string.IsNullOrWhiteSpace(apiKey))
+    {
+        Console.Write("Enter API key: ");
+        apiKey = Console.ReadLine();
+    }
+
+    if (string.IsNullOrWhiteSpace(apiKey))
+    {
+        Console.WriteLine("Error: API key is required.");
+        return;
+    }
+
+    Console.Write("Enter film title: ");
+    var filmTitle = Console.ReadLine();
+
+    if (string.IsNullOrWhiteSpace(filmTitle))
+    {
+        Console.WriteLine("Error: Film title is required.");
+        return;
+    }
+
+    Rootobject? film = await GetFilmDetailsAsync(apiKey, filmTitle);
+
+    if (film != null)
+    {
+        DisplayFilmInfo(film);   
+        SaveFilmToDatabase(film);
+    }
 }
-
-
-// Get film details
-Rootobject? film = await GetFilmDetailsAsync(apiKey, filmTitle);
-
-if (film != null)
+else if (choice == "2")
 {
-    DisplayFilmInfo(film);   
-    SaveFilmToDatabase(film);
+    ExportFilmTitles();
 }
 
 static async Task<Rootobject?> GetFilmDetailsAsync(string apiKey, string filmTitle)
@@ -242,5 +256,48 @@ static void SaveFilmToDatabase(Rootobject film)
     catch (Exception ex)
     {
         Console.WriteLine($"\nError saving film to database: {ex.Message}");
+    }
+}
+
+static void ExportFilmTitles()
+{
+    const string connectionString = "Data Source=films.db";
+    const string outputFile = "output.txt";
+    
+    try
+    {
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT Title FROM Films ORDER BY Title";
+
+        var titles = new List<string>();
+        using var reader = command.ExecuteReader();
+        
+        while (reader.Read())
+        {
+            if (!reader.IsDBNull(0))
+            {
+                titles.Add(reader.GetString(0));
+            }
+        }
+
+        if (titles.Count == 0)
+        {
+            Console.WriteLine("\nNo films found in the database.");
+            return;
+        }
+
+        File.WriteAllLines(outputFile, titles);
+        Console.WriteLine($"\nExported {titles.Count} film title(s) to {outputFile}.");
+    }
+    catch (FileNotFoundException)
+    {
+        Console.WriteLine("\nError: Database file not found.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"\nError exporting film titles: {ex.Message}");
     }
 }
