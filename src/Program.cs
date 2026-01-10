@@ -262,42 +262,68 @@ static void SaveFilmToDatabase(Rootobject film)
 static void ExportFilmTitles()
 {
     const string connectionString = "Data Source=films.db";
-    const string outputFile = "output.txt";
+    const string templateFile = "template.html";
+    const string outputFile = "output.html";
     
     try
     {
+        if (!File.Exists(templateFile))
+        {
+            Console.WriteLine($"\nError: Template file '{templateFile}' not found.");
+            return;
+        }
+
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT Title FROM Films ORDER BY Title";
+        command.CommandText = @"
+            SELECT Title, Year, Runtime, Genre, imdbRating, imdbVotes, imdbID, 
+                   Director, Actors, Plot, CreatedDate 
+            FROM Films 
+            ORDER BY CreatedDate DESC";
 
-        var titles = new List<string>();
+        var films = new List<Dictionary<string, string>>();
         using var reader = command.ExecuteReader();
         
         while (reader.Read())
         {
-            if (!reader.IsDBNull(0))
+            var film = new Dictionary<string, string>
             {
-                titles.Add(reader.GetString(0));
-            }
+                ["Title"] = reader.IsDBNull(0) ? "" : reader.GetString(0),
+                ["Year"] = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                ["Runtime"] = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                ["Genre"] = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                ["imdbRating"] = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                ["imdbVotes"] = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                ["imdbID"] = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                ["Director"] = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                ["Actors"] = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                ["Plot"] = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                ["CreatedDate"] = reader.IsDBNull(10) ? "" : reader.GetString(10)
+            };
+            films.Add(film);
         }
 
-        if (titles.Count == 0)
+        if (films.Count == 0)
         {
             Console.WriteLine("\nNo films found in the database.");
             return;
         }
 
-        File.WriteAllLines(outputFile, titles);
-        Console.WriteLine($"\nExported {titles.Count} film title(s) to {outputFile}.");
-    }
-    catch (FileNotFoundException)
-    {
-        Console.WriteLine("\nError: Database file not found.");
+        var jsonOptions = new JsonSerializerOptions { WriteIndented = false };
+        var filmsJson = JsonSerializer.Serialize(films, jsonOptions);
+
+        var template = File.ReadAllText(templateFile);
+        var html = template
+            .Replace("{{FILM_DATA}}", filmsJson)
+            .Replace("{{GENERATED_DATE}}", DateTime.Now.ToString("dd MMMM yyyy"));
+
+        File.WriteAllText(outputFile, html);
+        Console.WriteLine($"\nExported {films.Count} film(s) to {outputFile}.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"\nError exporting film titles: {ex.Message}");
+        Console.WriteLine($"\nError exporting films: {ex.Message}");
     }
 }

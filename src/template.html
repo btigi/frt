@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Film Collection Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #242424;
+            --accent-gold: #d4af37;
+            --accent-gold-dim: #9a7b2a;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a0a0a0;
+            --border-color: #333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .background-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(212, 175, 55, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(212, 175, 55, 0.02) 0%, transparent 50%),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 100px,
+                    rgba(212, 175, 55, 0.01) 100px,
+                    rgba(212, 175, 55, 0.01) 101px
+                );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 3rem 0 4rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            background: linear-gradient(135deg, var(--accent-gold) 0%, #f0d878 50%, var(--accent-gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 300;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-gold-dim);
+        }
+
+        .stat-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .chart-card h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .film-list-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .film-list-section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.75rem;
+            font-weight: 400;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .film-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .film-table th {
+            text-align: left;
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--accent-gold);
+            border-bottom: 2px solid var(--accent-gold-dim);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .film-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .film-table tr:hover td {
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .film-table .title-cell {
+            font-weight: 600;
+        }
+
+        .film-table .year-cell {
+            color: var(--accent-gold);
+        }
+
+        .film-table .runtime-cell,
+        .film-table .rating-cell {
+            color: var(--text-secondary);
+        }
+
+        .genre-tag {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.15);
+            color: var(--accent-gold);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin: 0.125rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-card {
+                min-width: 0;
+            }
+
+            .film-table {
+                font-size: 0.875rem;
+            }
+
+            .film-table th,
+            .film-table td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-pattern"></div>
+    <div class="container">
+        <header>
+            <h1>Film Collection</h1>
+            <p class="subtitle">Statistics &amp; Analytics</p>
+        </header>
+
+        <div class="stats-overview">
+            <div class="stat-card">
+                <div class="stat-value" id="totalFilms">0</div>
+                <div class="stat-label">Total Films</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalRuntime">0h</div>
+                <div class="stat-label">Total Runtime</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgRating">0</div>
+                <div class="stat-label">Avg. IMDB Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="uniqueGenres">0</div>
+                <div class="stat-label">Genres</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>Films by Year Watched</h2>
+                <div class="chart-container">
+                    <canvas id="yearWatchedChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Genre Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="genreChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Runtime Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="runtimeChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Top Rated Films</h2>
+                <div class="chart-container">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="film-list-section">
+            <h2>Complete Film List</h2>
+            <table class="film-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Year</th>
+                        <th>Runtime</th>
+                        <th>Genre</th>
+                        <th>Rating</th>
+                        <th>Added</th>
+                    </tr>
+                </thead>
+                <tbody id="filmTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <footer>
+            <p>Generated on {{GENERATED_DATE}} &bull; Film Rating Tracker</p>
+        </footer>
+    </div>
+
+    <script>
+        // Film data injected from C# application
+        const filmData = {{FILM_DATA}};
+
+        // Chart.js defaults
+        Chart.defaults.color = '#a0a0a0';
+        Chart.defaults.borderColor = '#333';
+
+        const goldPalette = [
+            '#d4af37', '#f0d878', '#9a7b2a', '#c9a227', '#e6c54b',
+            '#8b6914', '#daa520', '#ffd700', '#b8860b', '#cd950c'
+        ];
+
+        // Parse runtime to minutes
+        function parseRuntime(runtime) {
+            if (!runtime) return 0;
+            const match = runtime.match(/(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        // Calculate statistics
+        function calculateStats() {
+            const totalFilms = filmData.length;
+            const totalMinutes = filmData.reduce((sum, f) => sum + parseRuntime(f.Runtime), 0);
+            const totalHours = Math.round(totalMinutes / 60);
+            
+            const ratings = filmData.map(f => parseFloat(f.imdbRating)).filter(r => !isNaN(r));
+            const avgRating = ratings.length > 0 
+                ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) 
+                : 'N/A';
+
+            const allGenres = new Set();
+            filmData.forEach(f => {
+                if (f.Genre) {
+                    f.Genre.split(',').forEach(g => allGenres.add(g.trim()));
+                }
+            });
+
+            document.getElementById('totalFilms').textContent = totalFilms;
+            document.getElementById('totalRuntime').textContent = totalHours + 'h';
+            document.getElementById('avgRating').textContent = avgRating;
+            document.getElementById('uniqueGenres').textContent = allGenres.size;
+        }
+
+        // Films by year watched chart
+        function createYearWatchedChart() {
+            const yearCounts = {};
+            filmData.forEach(f => {
+                if (f.CreatedDate) {
+                    const year = new Date(f.CreatedDate).getFullYear();
+                    yearCounts[year] = (yearCounts[year] || 0) + 1;
+                }
+            });
+
+            const sortedYears = Object.keys(yearCounts).sort();
+            
+            new Chart(document.getElementById('yearWatchedChart'), {
+                type: 'bar',
+                data: {
+                    labels: sortedYears,
+                    datasets: [{
+                        label: 'Films Watched',
+                        data: sortedYears.map(y => yearCounts[y]),
+                        backgroundColor: '#d4af37',
+                        borderColor: '#f0d878',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Genre distribution chart
+        function createGenreChart() {
+            const genreCounts = {};
+            filmData.forEach(f => {
+                if (f.Genre) {
+                    f.Genre.split(',').forEach(g => {
+                        const genre = g.trim();
+                        genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+                    });
+                }
+            });
+
+            const sortedGenres = Object.entries(genreCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            new Chart(document.getElementById('genreChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: sortedGenres.map(g => g[0]),
+                    datasets: [{
+                        data: sortedGenres.map(g => g[1]),
+                        backgroundColor: goldPalette,
+                        borderColor: '#242424',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { 
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Runtime distribution chart
+        function createRuntimeChart() {
+            const runtimeBuckets = {
+                '< 90 min': 0,
+                '90-120 min': 0,
+                '120-150 min': 0,
+                '> 150 min': 0
+            };
+
+            filmData.forEach(f => {
+                const mins = parseRuntime(f.Runtime);
+                if (mins > 0) {
+                    if (mins < 90) runtimeBuckets['< 90 min']++;
+                    else if (mins < 120) runtimeBuckets['90-120 min']++;
+                    else if (mins < 150) runtimeBuckets['120-150 min']++;
+                    else runtimeBuckets['> 150 min']++;
+                }
+            });
+
+            new Chart(document.getElementById('runtimeChart'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(runtimeBuckets),
+                    datasets: [{
+                        data: Object.values(runtimeBuckets),
+                        backgroundColor: ['#9a7b2a', '#c9a227', '#d4af37', '#f0d878'],
+                        borderColor: '#242424',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { 
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Top rated films chart
+        function createRatingsChart() {
+            const ratedFilms = filmData
+                .filter(f => f.imdbRating && !isNaN(parseFloat(f.imdbRating)))
+                .map(f => ({ title: f.Title, rating: parseFloat(f.imdbRating) }))
+                .sort((a, b) => b.rating - a.rating)
+                .slice(0, 10);
+
+            new Chart(document.getElementById('ratingsChart'), {
+                type: 'bar',
+                data: {
+                    labels: ratedFilms.map(f => f.title.length > 20 ? f.title.substring(0, 20) + '...' : f.title),
+                    datasets: [{
+                        label: 'IMDB Rating',
+                        data: ratedFilms.map(f => f.rating),
+                        backgroundColor: '#d4af37',
+                        borderColor: '#f0d878',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        // Populate film table
+        function populateFilmTable() {
+            const tbody = document.getElementById('filmTableBody');
+            
+            const sortedFilms = [...filmData].sort((a, b) => {
+                const dateA = new Date(a.CreatedDate || 0);
+                const dateB = new Date(b.CreatedDate || 0);
+                return dateB - dateA;
+            });
+
+            sortedFilms.forEach(film => {
+                const row = document.createElement('tr');
+                
+                const genreTags = film.Genre 
+                    ? film.Genre.split(',').map(g => `<span class="genre-tag">${g.trim()}</span>`).join('')
+                    : '';
+
+                const addedDate = film.CreatedDate 
+                    ? new Date(film.CreatedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '';
+
+                row.innerHTML = `
+                    <td class="title-cell">${film.Title || 'Unknown'}</td>
+                    <td class="year-cell">${film.Year || ''}</td>
+                    <td class="runtime-cell">${film.Runtime || ''}</td>
+                    <td>${genreTags}</td>
+                    <td class="rating-cell">${film.imdbRating || ''}</td>
+                    <td>${addedDate}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Initialize
+        calculateStats();
+        createYearWatchedChart();
+        createGenreChart();
+        createRuntimeChart();
+        createRatingsChart();
+        populateFilmTable();
+    </script>
+</body>
+</html>
