@@ -304,6 +304,12 @@
                     <canvas id="ratingsChart"></canvas>
                 </div>
             </div>
+            <div class="chart-card">
+                <h2>User Rating Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="userRatingChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <div class="film-list-section">
@@ -315,7 +321,8 @@
                         <th>Year</th>
                         <th>Runtime</th>
                         <th>Genre</th>
-                        <th>Rating</th>
+                        <th>IMDB Rating</th>
+                        <th>User Rating</th>
                         <th>Added</th>
                     </tr>
                 </thead>
@@ -568,9 +575,75 @@
                     <td class="runtime-cell">${film.Runtime || ''}</td>
                     <td>${genreTags}</td>
                     <td class="rating-cell">${film.imdbRating || ''}</td>
+                    <td class="rating-cell">${film.UserRating || ''}</td>
                     <td>${addedDate}</td>
                 `;
                 tbody.appendChild(row);
+            });
+        }
+
+        // User rating distribution chart
+        function createUserRatingChart() {
+            const ratingCounts = {};
+            filmData.forEach(f => {
+                if (f.UserRating) {
+                    const rating = f.UserRating.trim();
+                    if (rating) {
+                        ratingCounts[rating] = (ratingCounts[rating] || 0) + 1;
+                    }
+                }
+            });
+
+            if (Object.keys(ratingCounts).length === 0) {
+                document.getElementById('userRatingChart').parentElement.parentElement.style.display = 'none';
+                return;
+            }
+
+            const sortedRatings = Object.entries(ratingCounts)
+                .sort((a, b) => {
+                    const numA = parseFloat(a[0]);
+                    const numB = parseFloat(b[0]);
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB;
+                    }
+                    return a[0].localeCompare(b[0]);
+                });
+
+            new Chart(document.getElementById('userRatingChart'), {
+                type: 'pie',
+                data: {
+                    labels: sortedRatings.map(r => r[0]),
+                    datasets: [{
+                        data: sortedRatings.map(r => r[1]),
+                        backgroundColor: goldPalette,
+                        borderColor: '#242424',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { 
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
 
@@ -580,6 +653,7 @@
         createGenreChart();
         createRuntimeChart();
         createRatingsChart();
+        createUserRatingChart();
         populateFilmTable();
     </script>
 </body>

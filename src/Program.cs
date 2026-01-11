@@ -47,8 +47,12 @@ if (choice == "1")
 
     if (film != null)
     {
-        DisplayFilmInfo(film);   
-        SaveFilmToDatabase(film);
+        DisplayFilmInfo(film);
+        
+        Console.Write("\nEnter your rating (1-10): ");
+        var userRating = Console.ReadLine();
+        
+        SaveFilmToDatabase(film, userRating);
     }
 }
 else if (choice == "2")
@@ -186,10 +190,11 @@ static void CreateFilmTable()
                 Production TEXT,
                 Website TEXT,
                 Response TEXT,
+                UserRating TEXT,
                 CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP
             )";
 
-        command.ExecuteNonQuery();
+        command.ExecuteNonQuery();        
         Console.WriteLine("Database table 'Films' created successfully.");
     }
     catch (Exception ex)
@@ -198,7 +203,7 @@ static void CreateFilmTable()
     }
 }
 
-static void SaveFilmToDatabase(Rootobject film)
+static void SaveFilmToDatabase(Rootobject film, string? userRating)
 {
     const string connectionString = "Data Source=films.db";
     
@@ -213,12 +218,12 @@ static void SaveFilmToDatabase(Rootobject film)
                 Title, Year, Rated, Released, Runtime, Genre, Director, Writer,
                 Actors, Plot, Language, Country, Awards, Poster, Metascore,
                 imdbRating, imdbVotes, imdbID, Type, DVD, BoxOffice,
-                Production, Website, Response
+                Production, Website, Response, UserRating
             ) VALUES (
                 @Title, @Year, @Rated, @Released, @Runtime, @Genre, @Director, @Writer,
                 @Actors, @Plot, @Language, @Country, @Awards, @Poster, @Metascore,
                 @imdbRating, @imdbVotes, @imdbID, @Type, @DVD, @BoxOffice,
-                @Production, @Website, @Response
+                @Production, @Website, @Response, @UserRating
             )";
 
         command.Parameters.AddWithValue("@Title", (object?)film.Title ?? DBNull.Value);
@@ -245,6 +250,7 @@ static void SaveFilmToDatabase(Rootobject film)
         command.Parameters.AddWithValue("@Production", (object?)film.Production ?? DBNull.Value);
         command.Parameters.AddWithValue("@Website", (object?)film.Website ?? DBNull.Value);
         command.Parameters.AddWithValue("@Response", (object?)film.Response ?? DBNull.Value);
+        command.Parameters.AddWithValue("@UserRating", string.IsNullOrWhiteSpace(userRating) ? DBNull.Value : userRating);
 
         command.ExecuteNonQuery();
         Console.WriteLine("\nFilm information has been stored in the database.");
@@ -279,7 +285,7 @@ static void ExportFilmTitles()
         var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Title, Year, Runtime, Genre, imdbRating, imdbVotes, imdbID, 
-                   Director, Actors, Plot, CreatedDate 
+                   Director, Actors, Plot, CreatedDate, UserRating 
             FROM Films 
             ORDER BY CreatedDate DESC";
 
@@ -300,7 +306,8 @@ static void ExportFilmTitles()
                 ["Director"] = reader.IsDBNull(7) ? "" : reader.GetString(7),
                 ["Actors"] = reader.IsDBNull(8) ? "" : reader.GetString(8),
                 ["Plot"] = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                ["CreatedDate"] = reader.IsDBNull(10) ? "" : reader.GetString(10)
+                ["CreatedDate"] = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                ["UserRating"] = reader.IsDBNull(11) ? "" : reader.GetString(11)
             };
             films.Add(film);
         }
