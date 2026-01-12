@@ -285,7 +285,7 @@ static void ExportFilmTitles()
         var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Title, Year, Runtime, Genre, imdbRating, imdbVotes, imdbID, 
-                   Director, Actors, Plot, CreatedDate, UserRating 
+                   Director, Actors, Plot, CreatedDate, UserRating, BoxOffice 
             FROM Films 
             ORDER BY CreatedDate DESC";
 
@@ -307,7 +307,8 @@ static void ExportFilmTitles()
                 ["Actors"] = reader.IsDBNull(8) ? "" : reader.GetString(8),
                 ["Plot"] = reader.IsDBNull(9) ? "" : reader.GetString(9),
                 ["CreatedDate"] = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                ["UserRating"] = reader.IsDBNull(11) ? "" : reader.GetString(11)
+                ["UserRating"] = reader.IsDBNull(11) ? "" : reader.GetString(11),
+                ["BoxOffice"] = reader.IsDBNull(12) ? "" : reader.GetString(12)
             };
             films.Add(film);
         }

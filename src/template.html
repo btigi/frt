@@ -91,9 +91,19 @@
 
         .stats-overview {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 1.5rem;
             margin-bottom: 3rem;
+        }
+
+        .stats-row {
+            display: contents;
+        }
+
+        @media (max-width: 1200px) {
+            .stats-overview {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .stat-card {
@@ -270,12 +280,28 @@
                 <div class="stat-label">Total Runtime</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="avgRating">0</div>
+                <div class="stat-value" id="totalGenres">0</div>
+                <div class="stat-label">Total Genres</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalDirectors">0</div>
+                <div class="stat-label">Total Directors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgRuntime">0</div>
+                <div class="stat-label">Avg. Runtime</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgImdbRating">0</div>
                 <div class="stat-label">Avg. IMDB Rating</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="uniqueGenres">0</div>
-                <div class="stat-label">Genres</div>
+                <div class="stat-value" id="avgUserRating">0</div>
+                <div class="stat-label">Avg. User Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgBoxOffice">0</div>
+                <div class="stat-label">Avg. Box Office</div>
             </div>
         </div>
 
@@ -356,17 +382,34 @@
             return match ? parseInt(match[1]) : 0;
         }
 
+        // Parse box office value to number
+        function parseBoxOffice(boxOffice) {
+            if (!boxOffice) return 0;
+            // Remove $ and commas, then parse
+            const cleaned = boxOffice.replace(/[$,]/g, '');
+            const match = cleaned.match(/(\d+)/);
+            return match ? parseFloat(match[1]) : 0;
+        }
+
+        // Format box office value
+        function formatBoxOffice(value) {
+            if (value === 0) return 'N/A';
+            if (value >= 1000000) {
+                return '$' + (value / 1000000).toFixed(1) + 'M';
+            }
+            if (value >= 1000) {
+                return '$' + (value / 1000).toFixed(1) + 'K';
+            }
+            return '$' + value.toFixed(0);
+        }
+
         // Calculate statistics
         function calculateStats() {
             const totalFilms = filmData.length;
             const totalMinutes = filmData.reduce((sum, f) => sum + parseRuntime(f.Runtime), 0);
             const totalHours = Math.round(totalMinutes / 60);
             
-            const ratings = filmData.map(f => parseFloat(f.imdbRating)).filter(r => !isNaN(r));
-            const avgRating = ratings.length > 0 
-                ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) 
-                : 'N/A';
-
+            // Total genres
             const allGenres = new Set();
             filmData.forEach(f => {
                 if (f.Genre) {
@@ -374,10 +417,48 @@
                 }
             });
 
+            // Total directors
+            const allDirectors = new Set();
+            filmData.forEach(f => {
+                if (f.Director) {
+                    f.Director.split(',').forEach(d => allDirectors.add(d.trim()));
+                }
+            });
+
+            // Average runtime
+            const runtimes = filmData.map(f => parseRuntime(f.Runtime)).filter(r => r > 0);
+            const avgRuntime = runtimes.length > 0 
+                ? Math.round(runtimes.reduce((a, b) => a + b, 0) / runtimes.length) + ' min'
+                : 'N/A';
+
+            // Average IMDB rating
+            const imdbRatings = filmData.map(f => parseFloat(f.imdbRating)).filter(r => !isNaN(r));
+            const avgImdbRating = imdbRatings.length > 0 
+                ? (imdbRatings.reduce((a, b) => a + b, 0) / imdbRatings.length).toFixed(1) 
+                : 'N/A';
+
+            // Average user rating
+            const userRatings = filmData
+                .map(f => parseFloat(f.UserRating))
+                .filter(r => !isNaN(r) && r > 0);
+            const avgUserRating = userRatings.length > 0 
+                ? (userRatings.reduce((a, b) => a + b, 0) / userRatings.length).toFixed(1) 
+                : 'N/A';
+
+            // Average box office
+            const boxOffices = filmData.map(f => parseBoxOffice(f.BoxOffice)).filter(b => b > 0);
+            const avgBoxOffice = boxOffices.length > 0 
+                ? formatBoxOffice(boxOffices.reduce((a, b) => a + b, 0) / boxOffices.length)
+                : 'N/A';
+
             document.getElementById('totalFilms').textContent = totalFilms;
             document.getElementById('totalRuntime').textContent = totalHours + 'h';
-            document.getElementById('avgRating').textContent = avgRating;
-            document.getElementById('uniqueGenres').textContent = allGenres.size;
+            document.getElementById('totalGenres').textContent = allGenres.size;
+            document.getElementById('totalDirectors').textContent = allDirectors.size;
+            document.getElementById('avgRuntime').textContent = avgRuntime;
+            document.getElementById('avgImdbRating').textContent = avgImdbRating;
+            document.getElementById('avgUserRating').textContent = avgUserRating;
+            document.getElementById('avgBoxOffice').textContent = avgBoxOffice;
         }
 
         // Films by year watched chart
