@@ -194,6 +194,39 @@
             font-size: 0.875rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+
+        .film-table th:hover {
+            background-color: rgba(212, 175, 55, 0.1);
+        }
+
+        .film-table th.sortable {
+            padding-right: 2rem;
+        }
+
+        .film-table th .sort-indicator {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            opacity: 0.5;
+        }
+
+        .film-table th.sort-asc .sort-indicator::after {
+            content: '▲';
+            opacity: 1;
+            color: var(--accent-gold);
+        }
+
+        .film-table th.sort-desc .sort-indicator::after {
+            content: '▼';
+            opacity: 1;
+            color: var(--accent-gold);
         }
 
         .film-table td {
@@ -343,13 +376,34 @@
             <table class="film-table">
                 <thead>
                     <tr>
-                        <th>Title</th>
-                        <th>Year</th>
-                        <th>Runtime</th>
-                        <th>Genre</th>
-                        <th>IMDB Rating</th>
-                        <th>User Rating</th>
-                        <th>Added</th>
+                        <th class="sortable" data-sort="title" data-sort-type="text">
+                            Title
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="year" data-sort-type="number">
+                            Year
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="runtime" data-sort-type="number">
+                            Runtime
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="genre" data-sort-type="text">
+                            Genre
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="imdbRating" data-sort-type="number">
+                            IMDB Rating
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="userRating" data-sort-type="number">
+                            User Rating
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="added" data-sort-type="date">
+                            Added
+                            <span class="sort-indicator"></span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="filmTableBody">
@@ -629,15 +683,104 @@
             });
         }
 
+        // Sorting state
+        let sortState = {
+            column: 'added',
+            direction: 'desc'
+        };
+
+        // Sort films based on current sort state
+        function sortFilms(films) {
+            const sorted = [...films];
+            const { column, direction } = sortState;
+            const ascending = direction === 'asc';
+
+            sorted.sort((a, b) => {
+                let aVal, bVal;
+
+                switch (column) {
+                    case 'title':
+                        aVal = (a.Title || '').toLowerCase();
+                        bVal = (b.Title || '').toLowerCase();
+                        return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                    
+                    case 'year':
+                        aVal = parseInt(a.Year) || 0;
+                        bVal = parseInt(b.Year) || 0;
+                        return ascending ? aVal - bVal : bVal - aVal;
+                    
+                    case 'runtime':
+                        aVal = parseRuntime(a.Runtime);
+                        bVal = parseRuntime(b.Runtime);
+                        return ascending ? aVal - bVal : bVal - aVal;
+                    
+                    case 'genre':
+                        aVal = (a.Genre || '').toLowerCase();
+                        bVal = (b.Genre || '').toLowerCase();
+                        return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                    
+                    case 'imdbRating':
+                        aVal = parseFloat(a.imdbRating) || 0;
+                        bVal = parseFloat(b.imdbRating) || 0;
+                        return ascending ? aVal - bVal : bVal - aVal;
+                    
+                    case 'userRating':
+                        aVal = parseFloat(a.UserRating) || 0;
+                        bVal = parseFloat(b.UserRating) || 0;
+                        return ascending ? aVal - bVal : bVal - aVal;
+                    
+                    case 'added':
+                        aVal = new Date(a.CreatedDate || 0).getTime();
+                        bVal = new Date(b.CreatedDate || 0).getTime();
+                        return ascending ? aVal - bVal : bVal - aVal;
+                    
+                    default:
+                        return 0;
+                }
+            });
+
+            return sorted;
+        }
+
+        // Update sort indicators
+        function updateSortIndicators() {
+            const headers = document.querySelectorAll('.film-table th.sortable');
+            headers.forEach(header => {
+                header.classList.remove('sort-asc', 'sort-desc');
+                if (header.dataset.sort === sortState.column) {
+                    header.classList.add(sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        // Handle column header click
+        function setupTableSorting() {
+            const headers = document.querySelectorAll('.film-table th.sortable');
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.dataset.sort;
+                    
+                    // If clicking the same column, toggle direction
+                    if (sortState.column === column) {
+                        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        // New column, default to ascending
+                        sortState.column = column;
+                        sortState.direction = 'asc';
+                    }
+                    
+                    updateSortIndicators();
+                    populateFilmTable();
+                });
+            });
+        }
+
         // Populate film table
         function populateFilmTable() {
             const tbody = document.getElementById('filmTableBody');
+            tbody.innerHTML = '';
             
-            const sortedFilms = [...filmData].sort((a, b) => {
-                const dateA = new Date(a.CreatedDate || 0);
-                const dateB = new Date(b.CreatedDate || 0);
-                return dateB - dateA;
-            });
+            const sortedFilms = sortFilms(filmData);
 
             sortedFilms.forEach(film => {
                 const row = document.createElement('tr');
@@ -735,6 +878,8 @@
         createRuntimeChart();
         createRatingsChart();
         createUserRatingChart();
+        setupTableSorting();
+        updateSortIndicators();
         populateFilmTable();
     </script>
 </body>
