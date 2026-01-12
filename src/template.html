@@ -340,15 +340,15 @@
 
         <div class="charts-grid">
             <div class="chart-card">
-                <h2>Films by Year Watched</h2>
+                <h2>User Rating Distribution</h2>
                 <div class="chart-container">
-                    <canvas id="yearWatchedChart"></canvas>
+                    <canvas id="userRatingChart"></canvas>
                 </div>
             </div>
             <div class="chart-card">
-                <h2>Genre Distribution</h2>
+                <h2>IMDB Rating Distribution</h2>
                 <div class="chart-container">
-                    <canvas id="genreChart"></canvas>
+                    <canvas id="ratingsChart"></canvas>
                 </div>
             </div>
             <div class="chart-card">
@@ -358,15 +358,33 @@
                 </div>
             </div>
             <div class="chart-card">
-                <h2>Top Rated Films</h2>
+                <h2>Genre Distribution</h2>
                 <div class="chart-container">
-                    <canvas id="ratingsChart"></canvas>
+                    <canvas id="genreChart"></canvas>
                 </div>
             </div>
             <div class="chart-card">
-                <h2>User Rating Distribution</h2>
+                <h2>Top Films</h2>
                 <div class="chart-container">
-                    <canvas id="userRatingChart"></canvas>
+                    <canvas id="topFilmsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Bottom Films</h2>
+                <div class="chart-container">
+                    <canvas id="bottomFilmsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Films by Year Watched</h2>
+                <div class="chart-container">
+                    <canvas id="yearWatchedChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Most Popular Directors</h2>
+                <div class="chart-container">
+                    <canvas id="directorsChart"></canvas>
                 </div>
             </div>
         </div>
@@ -645,21 +663,90 @@
             });
         }
 
-        // Top rated films chart
+        // IMDB rating distribution chart
         function createRatingsChart() {
-            const ratedFilms = filmData
-                .filter(f => f.imdbRating && !isNaN(parseFloat(f.imdbRating)))
-                .map(f => ({ title: f.Title, rating: parseFloat(f.imdbRating) }))
+            const ratingCounts = {};
+            filmData.forEach(f => {
+                if (f.imdbRating) {
+                    const rating = parseFloat(f.imdbRating);
+                    if (!isNaN(rating)) {
+                        // Round to 1 decimal place for grouping
+                        const roundedRating = rating.toFixed(1);
+                        ratingCounts[roundedRating] = (ratingCounts[roundedRating] || 0) + 1;
+                    }
+                }
+            });
+
+            if (Object.keys(ratingCounts).length === 0) {
+                document.getElementById('ratingsChart').parentElement.parentElement.style.display = 'none';
+                return;
+            }
+
+            const sortedRatings = Object.entries(ratingCounts)
+                .sort((a, b) => {
+                    const numA = parseFloat(a[0]);
+                    const numB = parseFloat(b[0]);
+                    return numA - numB;
+                });
+
+            new Chart(document.getElementById('ratingsChart'), {
+                type: 'pie',
+                data: {
+                    labels: sortedRatings.map(r => r[0]),
+                    datasets: [{
+                        data: sortedRatings.map(r => r[1]),
+                        backgroundColor: goldPalette,
+                        borderColor: '#242424',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { 
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Top films chart (user ratings)
+        function createTopFilmsChart() {
+            const topFilms = filmData
+                .filter(f => f.UserRating && !isNaN(parseFloat(f.UserRating)))
+                .map(f => ({ title: f.Title, rating: parseFloat(f.UserRating) }))
                 .sort((a, b) => b.rating - a.rating)
                 .slice(0, 10);
 
-            new Chart(document.getElementById('ratingsChart'), {
+            if (topFilms.length === 0) {
+                document.getElementById('topFilmsChart').parentElement.parentElement.style.display = 'none';
+                return;
+            }
+
+            new Chart(document.getElementById('topFilmsChart'), {
                 type: 'bar',
                 data: {
-                    labels: ratedFilms.map(f => f.title.length > 20 ? f.title.substring(0, 20) + '...' : f.title),
+                    labels: topFilms.map(f => f.title.length > 20 ? f.title.substring(0, 20) + '...' : f.title),
                     datasets: [{
-                        label: 'IMDB Rating',
-                        data: ratedFilms.map(f => f.rating),
+                        label: 'User Rating',
+                        data: topFilms.map(f => f.rating),
                         backgroundColor: '#d4af37',
                         borderColor: '#f0d878',
                         borderWidth: 1,
@@ -677,6 +764,102 @@
                         x: {
                             min: 0,
                             max: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        // Bottom films chart (lowest user ratings)
+        function createBottomFilmsChart() {
+            const bottomFilms = filmData
+                .filter(f => f.UserRating && !isNaN(parseFloat(f.UserRating)))
+                .map(f => ({ title: f.Title, rating: parseFloat(f.UserRating) }))
+                .sort((a, b) => a.rating - b.rating)
+                .slice(0, 10);
+
+            if (bottomFilms.length === 0) {
+                document.getElementById('bottomFilmsChart').parentElement.parentElement.style.display = 'none';
+                return;
+            }
+
+            new Chart(document.getElementById('bottomFilmsChart'), {
+                type: 'bar',
+                data: {
+                    labels: bottomFilms.map(f => f.title.length > 20 ? f.title.substring(0, 20) + '...' : f.title),
+                    datasets: [{
+                        label: 'User Rating',
+                        data: bottomFilms.map(f => f.rating),
+                        backgroundColor: '#9a7b2a',
+                        borderColor: '#8b6914',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        // Most popular directors chart
+        function createDirectorsChart() {
+            const directorCounts = {};
+            filmData.forEach(f => {
+                if (f.Director) {
+                    f.Director.split(',').forEach(d => {
+                        const director = d.trim();
+                        if (director) {
+                            directorCounts[director] = (directorCounts[director] || 0) + 1;
+                        }
+                    });
+                }
+            });
+
+            const sortedDirectors = Object.entries(directorCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            if (sortedDirectors.length === 0) {
+                document.getElementById('directorsChart').parentElement.parentElement.style.display = 'none';
+                return;
+            }
+
+            new Chart(document.getElementById('directorsChart'), {
+                type: 'bar',
+                data: {
+                    labels: sortedDirectors.map(d => d[0].length > 20 ? d[0].substring(0, 20) + '...' : d[0]),
+                    datasets: [{
+                        label: 'Number of Films',
+                        data: sortedDirectors.map(d => d[1]),
+                        backgroundColor: '#d4af37',
+                        borderColor: '#f0d878',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
                         }
                     }
                 }
@@ -873,11 +1056,14 @@
 
         // Initialize
         calculateStats();
-        createYearWatchedChart();
-        createGenreChart();
-        createRuntimeChart();
-        createRatingsChart();
         createUserRatingChart();
+        createRatingsChart();
+        createRuntimeChart();
+        createGenreChart();
+        createTopFilmsChart();
+        createBottomFilmsChart();
+        createYearWatchedChart();
+        createDirectorsChart();
         setupTableSorting();
         updateSortIndicators();
         populateFilmTable();
