@@ -13,8 +13,8 @@
             --bg-primary: #0f0f0f;
             --bg-secondary: #1a1a1a;
             --bg-card: #242424;
-            --accent-gold: #d4af37;
-            --accent-gold-dim: #9a7b2a;
+            --accent-gold: {{ACCENT_COLOR}};
+            --accent-gold-dim: {{ACCENT_COLOR_DIM}};
             --text-primary: #f5f5f5;
             --text-secondary: #a0a0a0;
             --border-color: #333;
@@ -74,7 +74,7 @@
             font-size: 3.5rem;
             font-weight: 700;
             letter-spacing: 0.05em;
-            background: linear-gradient(135deg, var(--accent-gold) 0%, #f0d878 50%, var(--accent-gold) 100%);
+            background: linear-gradient(135deg, var(--accent-gold) 0%, {{ACCENT_COLOR_LIGHT}} 50%, var(--accent-gold) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -442,10 +442,10 @@
         Chart.defaults.color = '#a0a0a0';
         Chart.defaults.borderColor = '#333';
 
-        const goldPalette = [
-            '#d4af37', '#f0d878', '#9a7b2a', '#c9a227', '#e6c54b',
-            '#8b6914', '#daa520', '#ffd700', '#b8860b', '#cd950c'
-        ];
+        const goldPalette = {{COLOR_PALETTE}};
+        const accentColor = '{{ACCENT_COLOR}}';
+        const accentColorDim = '{{ACCENT_COLOR_DIM}}';
+        const accentColorLight = '{{ACCENT_COLOR_LIGHT}}';
 
         // Parse runtime to minutes
         function parseRuntime(runtime) {
@@ -552,8 +552,8 @@
                     datasets: [{
                         label: 'Films Watched',
                         data: sortedYears.map(y => yearCounts[y]),
-                        backgroundColor: '#d4af37',
-                        borderColor: '#f0d878',
+                        backgroundColor: accentColor,
+                        borderColor: accentColorLight,
                         borderWidth: 1,
                         borderRadius: 4
                     }]
@@ -642,7 +642,7 @@
                     labels: Object.keys(runtimeBuckets),
                     datasets: [{
                         data: Object.values(runtimeBuckets),
-                        backgroundColor: ['#9a7b2a', '#c9a227', '#d4af37', '#f0d878'],
+                        backgroundColor: [accentColorDim, goldPalette[3] || accentColorDim, accentColor, accentColorLight],
                         borderColor: '#242424',
                         borderWidth: 2
                     }]
@@ -747,8 +747,8 @@
                     datasets: [{
                         label: 'User Rating',
                         data: topFilms.map(f => f.rating),
-                        backgroundColor: '#d4af37',
-                        borderColor: '#f0d878',
+                        backgroundColor: accentColor,
+                        borderColor: accentColorLight,
                         borderWidth: 1,
                         borderRadius: 4
                     }]
@@ -790,8 +790,8 @@
                     datasets: [{
                         label: 'User Rating',
                         data: bottomFilms.map(f => f.rating),
-                        backgroundColor: '#9a7b2a',
-                        borderColor: '#8b6914',
+                        backgroundColor: accentColorDim,
+                        borderColor: goldPalette[5] || accentColorDim,
                         borderWidth: 1,
                         borderRadius: 4
                     }]
@@ -843,8 +843,8 @@
                     datasets: [{
                         label: 'Number of Films',
                         data: sortedDirectors.map(d => d[1]),
-                        backgroundColor: '#d4af37',
-                        borderColor: '#f0d878',
+                        backgroundColor: accentColor,
+                        borderColor: accentColorLight,
                         borderWidth: 1,
                         borderRadius: 4
                     }]

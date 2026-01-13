@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
+using System.Linq;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
 using frt.Model;
 
 Console.WriteLine("OMDB Film Search");
@@ -265,6 +267,39 @@ static void SaveFilmToDatabase(Rootobject film, string? userRating)
     }
 }
 
+static (string AccentColor, string AccentColorDim, string AccentColorLight, string[] Palette) LoadTheme()
+{
+    const string defaultAccentColor = "#d4af37";
+    const string defaultAccentColorDim = "#9a7b2a";
+    const string defaultAccentColorLight = "#f0d878";
+    var defaultPalette = new[] { "#d4af37", "#f0d878", "#9a7b2a", "#c9a227", "#e6c54b", "#8b6914", "#daa520", "#ffd700", "#b8860b", "#cd950c" };
+
+    try
+    {
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+
+        var configuration = builder.Build();
+
+        var accentColor = configuration["Theme:AccentColor"] ?? defaultAccentColor;
+        var accentColorDim = configuration["Theme:AccentColorDim"] ?? defaultAccentColorDim;
+        var accentColorLight = configuration["Theme:AccentColorLight"] ?? defaultAccentColorLight;
+        
+        var paletteSection = configuration.GetSection("Theme:Palette");
+        var palette = paletteSection.Exists() && paletteSection.GetChildren().Any()
+            ? paletteSection.GetChildren().Select(c => c.Value ?? "").Where(v => !string.IsNullOrEmpty(v)).ToArray()
+            : defaultPalette;
+
+        return (accentColor, accentColorDim, accentColorLight, palette);
+    }
+    catch
+    {
+        // Return defaults if config file doesn't exist or can't be read
+        return (defaultAccentColor, defaultAccentColorDim, defaultAccentColorLight, defaultPalette);
+    }
+}
+
 static void ExportFilmTitles()
 {
     const string connectionString = "Data Source=films.db";
@@ -278,6 +313,10 @@ static void ExportFilmTitles()
             Console.WriteLine($"\nError: Template file '{templateFile}' not found.");
             return;
         }
+
+        // Load theme colors
+        var (accentColor, accentColorDim, accentColorLight, palette) = LoadTheme();
+        var paletteJson = JsonSerializer.Serialize(palette);
 
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
@@ -325,7 +364,11 @@ static void ExportFilmTitles()
         var template = File.ReadAllText(templateFile);
         var html = template
             .Replace("{{FILM_DATA}}", filmsJson)
-            .Replace("{{GENERATED_DATE}}", DateTime.Now.ToString("dd MMMM yyyy"));
+            .Replace("{{GENERATED_DATE}}", DateTime.Now.ToString("dd MMMM yyyy"))
+            .Replace("{{ACCENT_COLOR}}", accentColor)
+            .Replace("{{ACCENT_COLOR_DIM}}", accentColorDim)
+            .Replace("{{ACCENT_COLOR_LIGHT}}", accentColorLight)
+            .Replace("{{COLOR_PALETTE}}", paletteJson);
 
         File.WriteAllText(outputFile, html);
         Console.WriteLine($"\nExported {films.Count} film(s) to {outputFile}.");
