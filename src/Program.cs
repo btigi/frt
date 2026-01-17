@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
@@ -12,10 +12,11 @@ CreateFilmTable();
 
 Console.WriteLine("1 - Enter film details");
 Console.WriteLine("2 - Output film details");
+Console.WriteLine("3 - Import films from file");
 
 var choice = Console.ReadLine();
 
-if (choice != "1" && choice != "2")
+if (choice != "1" && choice != "2" && choice != "3")
 {
     Console.WriteLine("Error: Invalid choice.");
     return;
@@ -54,17 +55,46 @@ if (choice == "1")
         Console.Write("\nEnter your rating (1-10): ");
         var userRating = Console.ReadLine();
         
-        SaveFilmToDatabase(film, userRating);
+        var yearWatched = DateTime.Now.Year.ToString();
+        SaveFilmToDatabase(film, userRating, yearWatched);
     }
 }
 else if (choice == "2")
 {
     ExportFilmTitles();
 }
-
-static async Task<Rootobject?> GetFilmDetailsAsync(string apiKey, string filmTitle)
+else if (choice == "3")
 {
-    string apiUrl = $"http://www.omdbapi.com/?apikey={apiKey}&t={Uri.EscapeDataString(filmTitle)}";
+    var apiKey = Environment.GetEnvironmentVariable("OMDB_API_KEY");
+    if (string.IsNullOrWhiteSpace(apiKey))
+    {
+        Console.Write("Enter API key: ");
+        apiKey = Console.ReadLine();
+    }
+
+    if (string.IsNullOrWhiteSpace(apiKey))
+    {
+        Console.WriteLine("Error: API key is required.");
+        return;
+    }
+
+    Console.Write("Enter year watched (e.g. 2025): ");
+    var yearWatched = Console.ReadLine();
+
+    if (string.IsNullOrWhiteSpace(yearWatched))
+    {
+        Console.WriteLine("Error: Year watched is required.");
+        return;
+    }
+
+    await ImportFilmsFromFile(apiKey, yearWatched);
+}
+
+static async Task<Rootobject?> GetFilmDetailsAsync(string apiKey, string filmTitle, string? imdbId = null)
+{
+    string apiUrl = !string.IsNullOrWhiteSpace(imdbId)
+        ? $"http://www.omdbapi.com/?apikey={apiKey}&i={Uri.EscapeDataString(imdbId)}"
+        : $"http://www.omdbapi.com/?apikey={apiKey}&t={Uri.EscapeDataString(filmTitle)}";
 
     try
     {
@@ -193,6 +223,7 @@ static void CreateFilmTable()
                 Website TEXT,
                 Response TEXT,
                 UserRating TEXT,
+                YearWatched TEXT,
                 CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP
             )";
 
@@ -205,7 +236,7 @@ static void CreateFilmTable()
     }
 }
 
-static void SaveFilmToDatabase(Rootobject film, string? userRating)
+static void SaveFilmToDatabase(Rootobject film, string? userRating, string? yearWatched, bool silent = false)
 {
     const string connectionString = "Data Source=films.db";
     
@@ -220,12 +251,12 @@ static void SaveFilmToDatabase(Rootobject film, string? userRating)
                 Title, Year, Rated, Released, Runtime, Genre, Director, Writer,
                 Actors, Plot, Language, Country, Awards, Poster, Metascore,
                 imdbRating, imdbVotes, imdbID, Type, DVD, BoxOffice,
-                Production, Website, Response, UserRating
+                Production, Website, Response, UserRating, YearWatched
             ) VALUES (
                 @Title, @Year, @Rated, @Released, @Runtime, @Genre, @Director, @Writer,
                 @Actors, @Plot, @Language, @Country, @Awards, @Poster, @Metascore,
                 @imdbRating, @imdbVotes, @imdbID, @Type, @DVD, @BoxOffice,
-                @Production, @Website, @Response, @UserRating
+                @Production, @Website, @Response, @UserRating, @YearWatched
             )";
 
         command.Parameters.AddWithValue("@Title", (object?)film.Title ?? DBNull.Value);
@@ -253,17 +284,21 @@ static void SaveFilmToDatabase(Rootobject film, string? userRating)
         command.Parameters.AddWithValue("@Website", (object?)film.Website ?? DBNull.Value);
         command.Parameters.AddWithValue("@Response", (object?)film.Response ?? DBNull.Value);
         command.Parameters.AddWithValue("@UserRating", string.IsNullOrWhiteSpace(userRating) ? DBNull.Value : userRating);
+        command.Parameters.AddWithValue("@YearWatched", string.IsNullOrWhiteSpace(yearWatched) ? DBNull.Value : yearWatched);
 
         command.ExecuteNonQuery();
-        Console.WriteLine("\nFilm information has been stored in the database.");
+        if (!silent)
+            Console.WriteLine("\nFilm information has been stored in the database.");
     }
     catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
     {
-        Console.WriteLine($"\nWarning: A film with IMDB ID '{film.imdbID}' already exists in the database.");
+        if (!silent)
+            Console.WriteLine($"\nWarning: A film with IMDB ID '{film.imdbID}' already exists in the database.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"\nError saving film to database: {ex.Message}");
+        if (!silent)
+            Console.WriteLine($"\nError saving film to database: {ex.Message}");
     }
 }
 
@@ -377,4 +412,105 @@ static void ExportFilmTitles()
     {
         Console.WriteLine($"\nError exporting films: {ex.Message}");
     }
+}
+
+static async Task ImportFilmsFromFile(string apiKey, string yearWatched)
+{
+    const string filmsFile = "films.txt";
+
+    if (!File.Exists(filmsFile))
+    {
+        Console.WriteLine($"\nError: File '{filmsFile}' not found.");
+        return;
+    }
+
+    var lines = File.ReadAllLines(filmsFile);
+    var filmEntries = new List<(string Title, string Rating, string? ImdbId)>();
+
+    foreach (var line in lines)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            continue;
+
+		// "film title     rating     # tt1234567" (# and IMDB ID are optional)
+		var trimmedLine = line.TrimEnd();
+        
+        var match = System.Text.RegularExpressions.Regex.Match(trimmedLine, @"^(.+?)\s+(\d+)(?:\s*#\s*(tt\d+))?\s*$");
+        
+        if (match.Success)
+        {
+            var title = match.Groups[1].Value.Trim();
+            var rating = match.Groups[2].Value;
+            var imdbId = match.Groups[3].Success ? match.Groups[3].Value : null;
+            filmEntries.Add((title, rating, imdbId));
+        }
+        else
+        {
+            Console.WriteLine($"Warning: Could not parse line: '{line}'");
+        }
+    }
+
+    if (filmEntries.Count == 0)
+    {
+        Console.WriteLine("\nNo valid film entries found in the file.");
+        return;
+    }
+
+    Console.WriteLine($"\nFound {filmEntries.Count} film(s) to import.");
+    Console.WriteLine();
+    Console.WriteLine("Validating films...");
+    Console.WriteLine();
+
+    var validatedFilms = new List<(Rootobject Film, string Rating)>();
+    var failedFilms = new List<string>();
+
+    // Phase 1: Validate all films by fetching from API
+    foreach (var (title, rating, imdbId) in filmEntries)
+    {
+        if (!string.IsNullOrWhiteSpace(imdbId))
+            Console.WriteLine($"Validating: {title} (ID: {imdbId})...");
+        else
+            Console.WriteLine($"Validating: {title}...");
+        
+        var film = await GetFilmDetailsAsync(apiKey, title, imdbId);
+
+        if (film != null)
+        {
+            Console.WriteLine($"  Found: {film.Title} ({film.Year})");
+            validatedFilms.Add((film, rating));
+        }
+        else
+        {
+            failedFilms.Add(title);
+        }
+
+        // Basic rate limit compliance
+        await Task.Delay(250);
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"Validation complete. Found: {validatedFilms.Count}, Failed: {failedFilms.Count}");
+
+    if (failedFilms.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Failed films (fix these in films.txt and try again):");
+        foreach (var title in failedFilms)
+        {
+            Console.WriteLine($"  - {title}");
+        }
+        Console.WriteLine();
+        Console.WriteLine("Import aborted. No films were added to the database.");
+        return;
+    }
+
+    Console.WriteLine();
+    Console.WriteLine("All films validated. Importing to database...");
+
+    foreach (var (film, rating) in validatedFilms)
+    {
+        SaveFilmToDatabase(film, rating, yearWatched, silent: true);
+    }
+
+    Console.WriteLine($"Successfully imported {validatedFilms.Count} film(s) to the database.");
 }

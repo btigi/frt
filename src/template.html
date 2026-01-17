@@ -670,8 +670,8 @@
                 if (f.imdbRating) {
                     const rating = parseFloat(f.imdbRating);
                     if (!isNaN(rating)) {
-                        // Round to 1 decimal place for grouping
-                        const roundedRating = rating.toFixed(1);
+                        // Round to whole number for grouping
+                        const roundedRating = Math.round(rating).toString();
                         ratingCounts[roundedRating] = (ratingCounts[roundedRating] || 0) + 1;
                     }
                 }
@@ -682,44 +682,42 @@
                 return;
             }
 
-            const sortedRatings = Object.entries(ratingCounts)
-                .sort((a, b) => {
-                    const numA = parseFloat(a[0]);
-                    const numB = parseFloat(b[0]);
-                    return numA - numB;
-                });
+            // Create labels for all ratings 1-10, even if count is 0
+            const labels = [];
+            const data = [];
+            for (let i = 1; i <= 10; i++) {
+                labels.push(i.toString());
+                data.push(ratingCounts[i.toString()] || 0);
+            }
 
             new Chart(document.getElementById('ratingsChart'), {
-                type: 'pie',
+                type: 'bar',
                 data: {
-                    labels: sortedRatings.map(r => r[0]),
+                    labels: labels,
                     datasets: [{
-                        data: sortedRatings.map(r => r[1]),
-                        backgroundColor: goldPalette,
-                        borderColor: '#242424',
-                        borderWidth: 2
+                        label: 'Films',
+                        data: data,
+                        backgroundColor: accentColor,
+                        borderColor: accentColorLight,
+                        borderWidth: 1,
+                        borderRadius: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { 
-                                padding: 15,
-                                usePointStyle: true
-                            }
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'IMDB Rating'
                             }
                         }
                     }
@@ -976,12 +974,14 @@
                     ? new Date(film.CreatedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                     : '';
 
+                const imdbRatingRounded = film.imdbRating ? Math.round(parseFloat(film.imdbRating)) : '';
+
                 row.innerHTML = `
                     <td class="title-cell">${film.Title || 'Unknown'}</td>
                     <td class="year-cell">${film.Year || ''}</td>
                     <td class="runtime-cell">${film.Runtime || ''}</td>
                     <td>${genreTags}</td>
-                    <td class="rating-cell">${film.imdbRating || ''}</td>
+                    <td class="rating-cell">${imdbRatingRounded}</td>
                     <td class="rating-cell">${film.UserRating || ''}</td>
                     <td>${addedDate}</td>
                 `;
@@ -1006,47 +1006,42 @@
                 return;
             }
 
-            const sortedRatings = Object.entries(ratingCounts)
-                .sort((a, b) => {
-                    const numA = parseFloat(a[0]);
-                    const numB = parseFloat(b[0]);
-                    if (!isNaN(numA) && !isNaN(numB)) {
-                        return numA - numB;
-                    }
-                    return a[0].localeCompare(b[0]);
-                });
+            // Create labels for all ratings 1-10, even if count is 0
+            const labels = [];
+            const data = [];
+            for (let i = 1; i <= 10; i++) {
+                labels.push(i.toString());
+                data.push(ratingCounts[i.toString()] || 0);
+            }
 
             new Chart(document.getElementById('userRatingChart'), {
-                type: 'pie',
+                type: 'bar',
                 data: {
-                    labels: sortedRatings.map(r => r[0]),
+                    labels: labels,
                     datasets: [{
-                        data: sortedRatings.map(r => r[1]),
-                        backgroundColor: goldPalette,
-                        borderColor: '#242424',
-                        borderWidth: 2
+                        label: 'Films',
+                        data: data,
+                        backgroundColor: accentColor,
+                        borderColor: accentColorLight,
+                        borderWidth: 1,
+                        borderRadius: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { 
-                                padding: 15,
-                                usePointStyle: true
-                            }
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'User Rating'
                             }
                         }
                     }
